@@ -180,7 +180,6 @@ app.delete('/api/users/:userId/reviews/:id', async(req, res, next)=> {
   });
 
 
-
   const init = async()=> {
     await client.connect();
     console.log('connected to database');
