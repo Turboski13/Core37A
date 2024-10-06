@@ -5,30 +5,42 @@ const client = new pg.Client(process.env.DATABASE_URL || 'postgres://localhost/a
 const uuid = require('uuid');
 const bcrypt = require('bcrypt');
 
-
 const createTables = async()=> {
   const SQL = `
-    DROP TABLE IF EXISTS user_skills;
     DROP TABLE IF EXISTS users;
-    DROP TABLE IF EXISTS skills;
+    DROP TABLE IF EXISTS oauthusers;
+    DROP TABLE IF EXISTS items;
+    DROP TABLE IF EXISTS reviews;
+    
     CREATE TABLE users(
       id UUID PRIMARY KEY,
       username VARCHAR(100) UNIQUE NOT NULL,
       password VARCHAR(255)
-    );
-    CREATE TABLE skills(
+
+    CREATE TABLE oauthusers(                    ********************************
+      github_id UUID PRIMARY KEY,
+      login VARCHAR(100) UNIQUE NOT NULL,
+      access_token VARCHAR(255)
+      
+    CREATE TABLE items(
       id UUID PRIMARY KEY,
-      name VARCHAR(100) UNIQUE NOT NULL
-    );
-    CREATE TABLE user_skills(
+      name VARCHAR(100) UNIQUE NOT NULL,
+      details VARCHAR(100) UNIQUE NOT NULL,
+      rating VARCHAR(100) UNIQUE NOT NULL,
+      reviews_id UUID REFERENCES reviews(id) NOT NULL    ****************************
+
+    CREATE TABLE reviews(
       id UUID PRIMARY KEY,
-      skill_id UUID REFERENCES skills(id) NOT NULL,
       user_id UUID REFERENCES users(id) NOT NULL,
-      CONSTRAINT unique_skill_user UNIQUE (skill_id, user_id)
-    );
+      item_id UUID REFERENCES items(id) NOT NULL,
+      rating VARCHAR(100) UNIQUE NOT NULL,
+      comments VARCHAR(100) UNIQUE NOT NULL,
+      CONSTRAINT unique_item_user UNIQUE (item_id, user_id)
+);
   `;
   await client.query(SQL);
 };
+
 
 const createUser = async({ username, password })=> {
     const SQL = `
@@ -39,6 +51,25 @@ const createUser = async({ username, password })=> {
   
   }
   
+  const createOauthUser = async({ username })=> {
+    const SQL = `
+      INSERT INTO users(id, username) VALUES($1, $2) RETURNING *
+    `;
+    const response = await client.query(SQL, [uuid.v4(), username)]);
+    return response.rows[0];
+  
+  }
+
+
+
+
+
+
+
+
+
+
+
 const createUserSkill = async({ user_id, skill_id })=> {
     const SQL = `
       INSERT INTO user_skills(id, user_id, skill_id) VALUES($1, $2, $3) RETURNING *
@@ -100,4 +131,4 @@ const createUserSkill = async({ user_id, skill_id })=> {
     fetchUserSkills,
     createUserSkill,
     deleteUserSkill
-  };
+  }; */

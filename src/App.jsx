@@ -1,35 +1,51 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React, { useState, useEffect } from "react";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    // Get the user_id from the URL query params after redirect
+    const queryParams = new URLSearchParams(window.location.search);
+    const userId = queryParams.get("user_id");
+
+    if (userId) {
+      // Fetch the user data from the backend
+      fetch(`http://localhost:8080/api/github/user/${userId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          setUser(data);
+        })
+        .catch((err) => console.error("Error fetching user:", err));
+
+      // Clean up the URL (remove query params)
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
+  const handleLogin = () => {
+    window.location.href = "http://localhost:8080/auth/github";
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div className="App">
+      <h1>GitHub OAuth with PostgreSQL Demo</h1>
+      {user ? (
+        <div>
+          <p>Welcome, {user.login}!</p>
+          <img src={user.avatar_url} alt="Avatar" width="100" />
+          <button onClick={handleLogout}>Logout</button>
+        </div>
+      ) : (
+        <div>
+          <button onClick={handleLogin}>Login with GitHub</button>
+        </div>
+      )}
+    </div>
+  );
 }
 
-export default App
+export default App;
