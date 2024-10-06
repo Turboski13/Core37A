@@ -2,7 +2,7 @@ const pg = require('pg');
 const express = require('express');
 const app = express();
 const port = 2000;
-const client = new pg.Client(process.env.DATABASE_URL || 'postgres://localhost/acme_talent_agency_db'); ********************************
+const client = new pg.Client(process.env.DATABASE_URL || 'postgres://localhost/acme_talent_agency_db'); //********************************
 const uuid = require('uuid');
 const bcrypt = require('bcrypt');
 
@@ -20,7 +20,7 @@ const createTables = async()=> {
       password VARCHAR(255)
     );
 
-    CREATE TABLE oauthusers(                                  ********************************
+    CREATE TABLE oauthusers(                                  //go over this with mentor
       github_id UUID PRIMARY KEY,
       login VARCHAR(100) UNIQUE NOT NULL,
       access_token VARCHAR(255)
@@ -34,7 +34,7 @@ const createTables = async()=> {
       reviews_id UUID REFERENCES reviews(id)
     );
 
-    CREATE TABLE reviews(                             ********************************              
+    CREATE TABLE reviews(                             //go over this with mentor              
       id UUID PRIMARY KEY,
       user_id UUID REFERENCES users(id) NOT NULL,
       item_id UUID REFERENCES items(id) NOT NULL,
