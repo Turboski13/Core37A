@@ -139,7 +139,7 @@ const fetchItemReviews = async(id)=> {
     createOauthUsers,
     createItem,
     fetchUsers,
-    fetchOauthUsers
+    fetchOauthUsers,
     fetchItems,
     fetchUserReviews,
     fetchItemReviews,

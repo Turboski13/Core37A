@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const { Pool } = require('pg');
 require('dotenv').config();
 const PORT = 8080;
 const {
@@ -10,7 +9,7 @@ const {
     createOauthUsers,
     createItem,
     fetchUsers,
-    fetchOauthUsers
+    fetchOauthUsers,
     fetchItems,
     fetchUserReviews,
     fetchItemReviews,
@@ -63,9 +62,10 @@ app.get('/auth/github/callback', async (req, res) => {
       });
 
       const userData = await userResponse.json();
-      console.log(userData);
+      
 
-     await pool.query("INSERT INTO oauthusers (github_id,login, access_token) VALUES ($1, $2, $3)", [userData.id, userData.login, accessToken]);
+     await client.query(
+      "INSERT INTO oauthusers (github_id,login, access_token) VALUES ($1, $2, $3)", [userData.id, userData.login, accessToken]);
       // // Redirect back to frontend with the user ID
       res.redirect(`http://localhost:5173?user_id=${userData.id}`);
   //     // console.log(response);
@@ -78,13 +78,13 @@ app.get('/auth/github/callback', async (req, res) => {
   
   // API route to get the user data from PostgreSQL using GitHub ID
   app.get('/api/github/user/:id', async (req, res) => {
-      console.log('Received GitHub ID:', req.params.id);
+      /* console.log('Received GitHub ID:', req.params.id); */
       const { id } = req.params;
   
       try {
           // Find the user by GitHub ID in the database
-          const result = await pool.query('SELECT github_id, login FROM users WHERE github_id = $1', [id]);
-          console.log(result)
+          const result = await client.query('SELECT github_id, login FROM users WHERE github_id = $1', [id]);
+          /* console.log(result) */
           if (result.rows.length === 0) {
               return res.status(404).json({ error: 'User not found' });
           }
@@ -102,13 +102,7 @@ app.get('/auth/github/callback', async (req, res) => {
   });
   
   
-  app.listen(PORT, () => {
-      console.log(`Backend server is running on http://localhost:${PORT}`);
-  });
-
-
-
-
+ 
 // now to build out the app.gets
 
 
@@ -155,7 +149,8 @@ app.get('/api/item/:id/reviews', async(req, res, next)=> {
 
 app.post('/api/users/:id/reviews', async(req, res, next)=> {
   try {
-    res.status(201).send(await createReview({ user_id: req.params.id, item_id: req.body.item_id}));
+    const { item_id, rating, comments } = req.body;
+    res.status(201).send(await createReview({ user_id: req.params.id, item_id, rating, comments }));
   }
   catch(ex){
     next(ex);
@@ -176,7 +171,7 @@ app.delete('/api/users/:userId/reviews/:id', async(req, res, next)=> {
 
   app.delete('/api/item/:itemId/reviews/:id', async(req, res, next)=> {
     try {
-      await deleteReview({ id: req.params.id, item_id: req.params.userId });
+      await deleteReview({ id: req.params.id, item_id: req.params.itemId  });
       res.sendStatus(204);
     }
     catch(ex){
@@ -204,7 +199,7 @@ app.delete('/api/users/:userId/reviews/:id', async(req, res, next)=> {
     console.log(users);
   
     const skills = await fetchItems();
-    console.log(skills);
+    console.log(items);
   
     /* const userSkills = await Promise.all([
         createUserSkill({ user_id: moe.id, skill_id: plateSpinning.id}),
@@ -224,11 +219,14 @@ app.delete('/api/users/:userId/reviews/:id', async(req, res, next)=> {
       
       console.log('data seeded');
     
-      const port = process.env.PORT || 3000;
-      app.listen(port, ()=> console.log(`listening on port ${port}`));
+      app.listen(PORT, () => {
+        console.log(`Server running on http://localhost:${PORT}`);
+      });
+    } catch (error) {
+      console.error('Error during initialization:', error);
     };
-    
-    init();
+  
+  init();
 
  
  
