@@ -33,6 +33,10 @@ const {
   }));
 
   app.use(express.json());
+// Is logged in here, check middleware ********************************************************************************************************************
+
+
+// remove Oauth and add in the fetchUsers ***************************************************************************************************************
 
 // GitHub OAuth route - redirect to GitHub for authentication
 app.get('/auth/github', (req, res) => {
