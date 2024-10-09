@@ -35,6 +35,14 @@ const createTables = async()=> {
       comments VARCHAR(255),   
       CONSTRAINT unique_item_user UNIQUE (item_id, user_id)     
     );
+
+    CREATE TABLE comments (
+      id UUID PRIMARY KEY,
+      review_id UUID REFERENCES reviews(id) NOT NULL,
+      user_id UUID REFERENCES users(id) NOT NULL,
+      comment_text VARCHAR(255),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
   `;
   await client.query(SQL);
 };
@@ -59,6 +67,13 @@ const fetchItemDetails = async(id)=> {
   return response.rows;
 }
 //GET /api/items/:name Search for items by name or keyword.
+const searchItems = async(name) => {
+  const SQL = `
+    SELECT * FROM items WHERE name ILIKE $1;
+  `;
+  const response = await client.query(SQL, [`%${name}%`]);
+  return response.rows;
+};
 
 //POST /api/signup – Sign up for a new account.
 const signUp = async({ username, password })=> {
@@ -70,7 +85,24 @@ const signUp = async({ username, password })=> {
 
 }
 //POST /api/login – Log in with an existing account.
+const logIn = async({ username, password }) => {
+  const SQL = `
+    SELECT * FROM users WHERE username = $1;
+  `;
+  const response = await client.query(SQL, [username]);
+  const user = response.rows[0];
 
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) {
+    throw new Error('Invalid password');
+  }
+
+  return user;
+};
 
 
 
@@ -84,13 +116,16 @@ const createReview = async({ user_id, item_id, rating, comments })=> {
   return response.rows[0];
 }
 //PUT /api/reviews – Edit an existing review (text + rating).
-const updateReview = async({id, user_id})=> {
+const updateReview = async({ id, user_id, rating, comments }) => {
   const SQL = `
-    UPDATE FROM reviews
-    WHERE id = $1 AND user_id = $2
+    UPDATE reviews
+    SET rating = $1, comments = $2
+    WHERE id = $3 AND user_id = $4
+    RETURNING *;
   `;
-  await client.query(SQL, [ id, user_id ]);
-}
+  const response = await client.query(SQL, [rating, comments, id, user_id]);
+  return response.rows[0];
+};
 //DELETE /api/reviews – Delete a review the user has written.
 const deleteReview = async({id, user_id})=> {
   const SQL = `
@@ -109,13 +144,44 @@ const fetchUserReviews = async(id)=> {
   return response.rows;
 }
 //POST /api/comments – Write a comment on another user's review.
+const createComment = async({ review_id, user_id, comment_text }) => {
+  const SQL = `
+    INSERT INTO comments(id, review_id, user_id, comment_text)
+    VALUES($1, $2, $3, $4) RETURNING *;
+  `;
+  const response = await client.query(SQL, [uuid.v4(), review_id, user_id, comment_text]);
+  return response.rows[0];
+};
 
 //PUT /api/comments – Edit a comment the user has written.
+const updateComment = async({ id, user_id, comment_text }) => {
+  const SQL = `
+    UPDATE comments
+    SET comment_text = $1
+    WHERE id = $2 AND user_id = $3
+    RETURNING *;
+  `;
+  const response = await client.query(SQL, [comment_text, id, user_id]);
+  return response.rows[0];
+};
 
 //DELETE /api/comments – Delete a comment the user has written.
+const deleteComment = async({ id, user_id }) => {
+  const SQL = `
+    DELETE FROM comments
+    WHERE id = $1 AND user_id = $2
+  `;
+  await client.query(SQL, [id, user_id]);
+};
 
 //GET /api/comments/:userId – View all comments the user has written.
-
+const fetchUserComments = async(user_id) => {
+  const SQL = `
+    SELECT * FROM comments WHERE user_id = $1;
+  `;
+  const response = await client.query(SQL, [user_id]);
+  return response.rows;
+};
 
 
 
@@ -138,12 +204,6 @@ const fetchUsers = async()=> {
   const response = await client.query(SQL);
   return response.rows;
 }
-
-
-  
-
-
-// delete a review
   
 
 
@@ -152,12 +212,18 @@ const fetchUsers = async()=> {
     client,
     createTables,
     signUp,
+    logIn,
     createItem,
     fetchUsers,
     fetchItems,
+    searchItems,
     fetchUserReviews,
     fetchItemDetails,
     createReview,
-    deleteReview,
-    updateReview
+    updateReview,
+    deleteReview, 
+    createComment,
+    updateComment,
+    deleteComment,
+    fetchUserComments
   };

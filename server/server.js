@@ -7,7 +7,7 @@ const bcrypt = require('bcrypt');
 app.use(express.json());
 
 const {
-    client,
+    /* client,
     createTables,
     createUser,
     createOauthUsers,
@@ -18,7 +18,7 @@ const {
     fetchUserReviews,
     fetchItemReviews,
     createReview,
-    deleteReview
+    deleteReview */
   } = require('./db');
 const app = express();
 
@@ -183,6 +183,15 @@ app.delete('/api/users/:userId/reviews/:id', async(req, res, next)=> {
       next(ex);
     }
   });
+
+
+
+
+
+
+
+
+//do I seed here, or should I build a seed file? *************************************************************************
 
 
   const init = async()=> {
