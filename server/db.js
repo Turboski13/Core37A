@@ -2,7 +2,7 @@ const pg = require('pg');
 const express = require('express');
 const app = express();
 const port = 2000;
-const client = new pg.Client(process.env.DATABASE_URL || 'postgres://localhost/acme_talent_agency_db'); //********************************
+const client = new pg.Client(process.env.DATABASE_URL || 'postgres://localhost/this_is_new'); //fix this link
 const uuid = require('uuid');
 const bcrypt = require('bcrypt');
 
@@ -10,7 +10,6 @@ const createTables = async()=> {
   const SQL = `
     DROP TABLE IF EXISTS reviews;
     DROP TABLE IF EXISTS items;
-    DROP TABLE IF EXISTS oauthusers;
     DROP TABLE IF EXISTS users;
     
     
@@ -20,13 +19,7 @@ const createTables = async()=> {
       password VARCHAR(255)
     );
 
-    CREATE TABLE oauthusers(                                  //go over this with mentor
-      github_id UUID PRIMARY KEY,
-      login VARCHAR(100) UNIQUE NOT NULL,
-      access_token VARCHAR(255)
-    );
-
-    CREATE TABLE items(
+      CREATE TABLE items(
       id UUID PRIMARY KEY,
       name VARCHAR(100) UNIQUE NOT NULL,
       details VARCHAR(255),
@@ -34,85 +27,30 @@ const createTables = async()=> {
       reviews_id UUID REFERENCES reviews(id)
     );
 
-    CREATE TABLE reviews(                             //go over this with mentor              
+    CREATE TABLE reviews(                                          
       id UUID PRIMARY KEY,
       user_id UUID REFERENCES users(id) NOT NULL,
       item_id UUID REFERENCES items(id) NOT NULL,
       rating VARCHAR(10),
-      comments VARCHAR(255),
-      CONSTRAINT unique_item_user UNIQUE (item_id, user_id)
+      comments VARCHAR(255),   
+      CONSTRAINT unique_item_user UNIQUE (item_id, user_id)     
     );
   `;
   await client.query(SQL);
 };
 
-// create a user
-const createUser = async({ username, password })=> {
-    const SQL = `
-      INSERT INTO users(id, username, password) VALUES($1, $2, $3) RETURNING *;
-    `;
-    const response = await client.query(SQL, [uuid.v4(), username, await bcrypt.hash(password, 5)]);
-    return response.rows[0];
-  
-  }
-  
-  // create an Oauth user
-  const createOauthUsers = async({ login })=> {
-    const SQL = `
-      INSERT INTO oauthusers(github_id, login, access_token) VALUES($1, $2, $3) RETURNING *;
-    `;
-    const response = await client.query(SQL, [uuid.v4(), login, uuid.v4()]);    //do I want to generate a token here?
-    return response.rows[0];
-  
-  }
+//Public routes
+//GET/API/items-browse and read reviews
+const fetchItems = async()=> {
+  const SQL = `
+    SELECT * FROM items;
+  `;
+  const response = await client.query(SQL);
+  return response.rows;
+}
 
-  // create an item
-  const createItem = async({ name, details, rating, reviews_id })=> {
-    const SQL = `
-      INSERT INTO items(id, name, details, rating, reviews_id) VALUES($1, $2, $3, $4, $5) RETURNING *;
-    `;
-    const response = await client.query(SQL, [uuid.v4(), name, details, rating, reviews_id]);
-    return response.rows[0];
-  }
-  // create a review
-const createReview = async({ user_id, item_id, rating, comments })=> {
-    const SQL = `
-      INSERT INTO reviews(id, user_id, item_id, rating, comments) VALUES($1, $2, $3, $4, $5) RETURNING *;
-    `;
-    const response = await client.query(SQL, [uuid.v4(), user_id, item_id, rating, comments]);
-    return response.rows[0];
-  }
-
-   // fetch all users
-  const fetchUsers = async()=> {
-    const SQL = `
-      SELECT * FROM users;
-    `;
-    const response = await client.query(SQL);
-    return response.rows;
-  }
-  
-  // fetch all items
-  const fetchItems = async()=> {
-    const SQL = `
-      SELECT * FROM items;
-    `;
-    const response = await client.query(SQL);
-    return response.rows;
-  }
-
-  //fetch review from a specific user
-  const fetchUserReviews = async(id)=> {
-    const SQL = `
-      SELECT * FROM reviews
-      WHERE user_id = $1
-    `;
-    const response = await client.query(SQL, [ id ]);
-    return response.rows;
-  }
-  
-//fetch review from a specific item
-const fetchItemReviews = async(id)=> {
+//GET/API/items-View details, rating, and information of a specific item
+const fetchItemDetails = async(id)=> {
   const SQL = `
     SELECT * FROM reviews
     WHERE item_id = $1
@@ -120,29 +58,106 @@ const fetchItemReviews = async(id)=> {
   const response = await client.query(SQL, [ id ]);
   return response.rows;
 }
+//GET /api/items/:name Search for items by name or keyword.
+
+//POST /api/signup – Sign up for a new account.
+const signUp = async({ username, password })=> {
+  const SQL = `
+    INSERT INTO users(id, username, password) VALUES($1, $2, $3) RETURNING *;
+  `;
+  const response = await client.query(SQL, [uuid.v4(), username, await bcrypt.hash(password, 5)]);
+  return response.rows[0];
+
+}
+//POST /api/login – Log in with an existing account.
+
+
+
+
+//Logged in User Routes (authenticated users)
+//POST /api/reviews – Write and submit a review for an item (text + rating).
+const createReview = async({ user_id, item_id, rating, comments })=> {
+  const SQL = `
+    INSERT INTO reviews(id, user_id, item_id, rating, comments) VALUES($1, $2, $3, $4, $5) RETURNING *;
+  `;
+  const response = await client.query(SQL, [uuid.v4(), user_id, item_id, rating, comments]);
+  return response.rows[0];
+}
+//PUT /api/reviews – Edit an existing review (text + rating).
+const updateReview = async({id, user_id})=> {
+  const SQL = `
+    UPDATE FROM reviews
+    WHERE id = $1 AND user_id = $2
+  `;
+  await client.query(SQL, [ id, user_id ]);
+}
+//DELETE /api/reviews – Delete a review the user has written.
+const deleteReview = async({id, user_id})=> {
+  const SQL = `
+    DELETE FROM reviews
+    WHERE id = $1 AND user_id = $2
+  `;
+  await client.query(SQL, [ id, user_id ]);
+}
+//GET /api/reviews/:userId – View all reviews written by the user.
+const fetchUserReviews = async(id)=> {
+  const SQL = `
+    SELECT * FROM reviews
+    WHERE user_id = $1
+  `;
+  const response = await client.query(SQL, [ id ]);
+  return response.rows;
+}
+//POST /api/comments – Write a comment on another user's review.
+
+//PUT /api/comments – Edit a comment the user has written.
+
+//DELETE /api/comments – Delete a comment the user has written.
+
+//GET /api/comments/:userId – View all comments the user has written.
+
+
+
+
+//ect extra?
+// create a user
+// create an item
+const createItem = async({ name, details, rating, reviews_id })=> {
+  const SQL = `
+    INSERT INTO items(id, name, details, rating, reviews_id) VALUES($1, $2, $3, $4, $5) RETURNING *;
+  `;
+  const response = await client.query(SQL, [uuid.v4(), name, details, rating, reviews_id]);
+  return response.rows[0];
+}
+
+// fetch all users
+const fetchUsers = async()=> {
+  const SQL = `
+    SELECT * FROM users;
+  `;
+  const response = await client.query(SQL);
+  return response.rows;
+}
+
+
+  
+
 
 // delete a review
-  const deleteReview = async({id, user_id})=> {
-    const SQL = `
-      DELETE FROM reviews
-      WHERE id = $1 AND user_id = $2
-    `;
-    await client.query(SQL, [ id, user_id ]);
-  }
+  
 
 
 
   module.exports = {
     client,
     createTables,
-    createUser,
-    createOauthUsers,
+    signUp,
     createItem,
     fetchUsers,
-    fetchOauthUsers,
     fetchItems,
     fetchUserReviews,
-    fetchItemReviews,
+    fetchItemDetails,
     createReview,
-    deleteReview
+    deleteReview,
+    updateReview
   };

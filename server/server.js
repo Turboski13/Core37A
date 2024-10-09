@@ -2,6 +2,10 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const PORT = 8080;
+const client = new pg.Client('postgres://localhost:5432/2405-ftb-et-web-pt')
+const bcrypt = require('bcrypt');
+app.use(express.json());
+
 const {
     client,
     createTables,
@@ -22,7 +26,8 @@ app.use(cors({
   origin: 'http://localhost:5173', // Allow requests from React app
   credentials: true,
 }));
-app.use(express.json());
+
+
 
 // GitHub OAuth route - redirect to GitHub for authentication
 app.get('/auth/github', (req, res) => {
