@@ -2,32 +2,37 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const PORT = 8080;
-const client = new pg.Client('postgres://localhost:5432/2405-ftb-et-web-pt')
 const bcrypt = require('bcrypt');
 app.use(express.json());
 
 const {
-    /* client,
-    createTables,
-    createUser,
-    createOauthUsers,
-    createItem,
-    fetchUsers,
-    fetchOauthUsers,
-    fetchItems,
-    fetchUserReviews,
-    fetchItemReviews,
-    createReview,
-    deleteReview */
+  client,
+  createTables,
+  signUp,
+  logIn,
+  createItem,
+  fetchUsers,
+  fetchItems,
+  searchItems,
+  fetchUserReviews,
+  fetchItemDetails,
+  createReview,
+  updateReview,
+  deleteReview, 
+  createComment,
+  updateComment,
+  deleteComment,
+  fetchUserComments
   } = require('./db');
-const app = express();
 
-app.use(cors({
-  origin: 'http://localhost:5173', // Allow requests from React app
-  credentials: true,
-}));
+  const app = express();  
 
+  app.use(cors({
+    origin: 'http://localhost:5173', // Allow requests from React app
+    credentials: true,
+  }));
 
+  app.use(express.json());
 
 // GitHub OAuth route - redirect to GitHub for authentication
 app.get('/auth/github', (req, res) => {
@@ -39,7 +44,7 @@ app.get('/auth/github', (req, res) => {
 // OAuth callback handler
 app.get('/auth/github/callback', async (req, res) => {
   const { code } = req.query; // github sends code in query params
-  // console.log('Received GitHub callback', code);
+  
 
   try {
       // Exchange code for access token - step 1
@@ -59,7 +64,7 @@ app.get('/auth/github/callback', async (req, res) => {
       const tokenData = await tokenResponse.json();
       const accessToken = tokenData.access_token;
 
-  //     // Get user info using access token - step 2 
+       // Get user info using access token - step 2 
       const userResponse = await fetch('https://api.github.com/user', {
           headers: {
               Authorization: `Bearer ${accessToken}`,
@@ -70,16 +75,16 @@ app.get('/auth/github/callback', async (req, res) => {
       
 
      await client.query(
-      "INSERT INTO oauthusers (github_id,login, access_token) VALUES ($1, $2, $3)", [userData.id, userData.login, accessToken]);
+      "INSERT INTO users (github_id,login, access_token) VALUES ($1, $2, $3)", [userData.id, userData.login, accessToken]);
       // // Redirect back to frontend with the user ID
       res.redirect(`http://localhost:5173?user_id=${userData.id}`);
-  //     // console.log(response);
+      // console.log(response);
   } catch (error) {
       console.error('Error fetching access token or user info', error);
       res.status(500).json({ error: 'Failed to authenticate with GitHub' });
   }
 });
-   
+   //***************************************************************************************************************************************** */
   
   // API route to get the user data from PostgreSQL using GitHub ID
   app.get('/api/github/user/:id', async (req, res) => {
@@ -199,29 +204,37 @@ app.delete('/api/users/:userId/reviews/:id', async(req, res, next)=> {
     console.log('connected to database');
     await createTables();
     console.log('tables created');
-    /* const [moe, lucy, ethyl, singing, dancing, juggling, plateSpinning] = await Promise.all([
+    const [moe, lucy, ethyl, singing, dancing, juggling, plateSpinning] = await Promise.all([
       createUser({ username: 'moe', password: 's3cr3t' }),
       createUser({ username: 'lucy', password: 's3cr3t!!' }),
       createUser({ username: 'ethyl', password: 'shhh' }),
-      createSkill({ name: 'singing'}),
-      createSkill({ name: 'dancing'}),
-      createSkill({ name: 'juggling'}),
-      createSkill({ name: 'plate spinning'}),
-    ]); */
+      createItem({ name: 'singing'}),
+      createItem({ name: 'dancing'}),
+      createItem({ name: 'juggling'}),
+      createItem({ name: 'plate spinning'}),
+    ]); 
     const users = await fetchUsers();
     console.log(users);
   
     const skills = await fetchItems();
     console.log(items);
   
-    /* const userSkills = await Promise.all([
+    /* const userSkills = await Promise.all([                                                        //Build this for reviews
         createUserSkill({ user_id: moe.id, skill_id: plateSpinning.id}),
         createUserSkill({ user_id: moe.id, skill_id: juggling.id}),
         createUserSkill({ user_id: ethyl.id, skill_id: juggling.id}),
         createUserSkill({ user_id: lucy.id, skill_id: dancing.id}),
       ]); */
+
+/* const userSkills = await Promise.all([                                           //Build this for comments
+        createUserSkill({ user_id: moe.id, skill_id: plateSpinning.id}),
+        createUserSkill({ user_id: moe.id, skill_id: juggling.id}),
+        createUserSkill({ user_id: ethyl.id, skill_id: juggling.id}),
+        createUserSkill({ user_id: lucy.id, skill_id: dancing.id}),
+      ]); */
+
     
-      c/* onsole.log(await fetchUserReviews(X.id));
+      /* console.log(await fetchUserReviews(X.id));
       await deleteReview({ user_id: X.id, id: reviews[0].id});
       console.log(await fetchUserReviews(moe.id));
     
