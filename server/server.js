@@ -249,6 +249,24 @@ app.post('/api/login', async(req, res, next)=> {
   }
 });
 
+//average rating
+app.get('/api/items/:id', async (req, res, next) => {
+  try {
+    const itemDetails = await fetchItemDetails(req.params.id);
+    const result = await client.query("SELECT AVG(rating) AS avg_rating FROM Reviews WHERE item_id = $1", [req.params.id]);
+    const avgRating = result.rows[0].avg_rating;
+
+    res.json({
+      ...itemDetails,
+      average_rating: avgRating ? parseFloat(avgRating).toFixed(2) : 'No ratings yet' // Rounded to 2 decimal places
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+
 
 const init = async()=> {
     await client.connect();
@@ -292,7 +310,6 @@ const init = async()=> {
     });
   } catch (err) {
     console.error('Error during initialization:', err);
-  }
-};
+  };
 
 init();
