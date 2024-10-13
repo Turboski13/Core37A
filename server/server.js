@@ -1,12 +1,8 @@
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config();
-const PORT = 8080;
+const dotenv = require('dotenv').config();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-
-const SECRET_KEY = 'shhhhh';
-app.use(express.json());
 
 const {
   client,
@@ -27,169 +23,89 @@ const {
   deleteComment,
   fetchUserComments
   } = require('./db');
+  
+dotenv.config();
+const app = express();
+const PORT = process.env.PORT || 8080;
+const SECRET_KEY = process.env.SECRET_KEY || 'shhhhh';
 
-  const app = express();  
-
-  app.use(cors({
+app.use(cors({
     origin: 'http://localhost:5173', // Allow requests from React app
     credentials: true,
   }));
 
   app.use(express.json());
-// IsLoggedIn here, check middleware ********************************************************************************************************************
-async function isCorrectJWTToken(req, res, next) {
-  try {
-      if (await jwt.verify(req.headers.authorization, SECRET_KEY)) {
-          next();
-      }
-  } catch (err) {
-      res.status(401).send('Unauthorized');
-  }
-}
 
-app.get('/api/users', async (req, res) => {
-  const response = await client.query("SELECT * FROM Users");
-  res.json(response.rows);
-})
 
 
 // get token from database
-app.get('/api/users/:id', async (req, res) => {
-    const response = await client.query("SELECT * FROM Users WHERE id = $1", [req.params.id]);
-    const isCorrectJWTToken = await jwt.verify(response.rows[0].token, SECRET_KEY);
-         if (isCorrectJWTToken) {
-         res.json(response.rows);
-     } else {
-         res.status(401).send('Unauthorized');
-     }
- })
 
-
-// remove Oauth and add in the fetchUsers ***************************************************************************************************************
-
-// GitHub OAuth route - redirect to GitHub for authentication
-/* app.get('/auth/github', (req, res) => {
-  const redirect_uri = 'http://localhost:8080/auth/github/callback';
-  const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${redirect_uri}&scope=user:email`;
-  res.redirect(githubAuthUrl);
-}); */
-
-// OAuth callback handler
-/* app.get('/auth/github/callback', async (req, res) => {
-  const { code } = req.query; // github sends code in query params
-  
-
-  try {
-      // Exchange code for access token - step 1
-      const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
-          method: 'POST',
-          headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-          },
-          body: JSON.stringify({
-              client_id: process.env.GITHUB_CLIENT_ID,
-              client_secret: process.env.GITHUB_CLIENT_SECRET,
-              code,
-          }),
-      });
-
-      const tokenData = await tokenResponse.json();
-      const accessToken = tokenData.access_token;
-
-       // Get user info using access token - step 2 
-      const userResponse = await fetch('https://api.github.com/user', {
-          headers: {
-              Authorization: `Bearer ${accessToken}`,
-          },
-      });
-
-      const userData = await userResponse.json();
-      
-
-     await client.query(
-      "INSERT INTO users (github_id,login, access_token) VALUES ($1, $2, $3)", [userData.id, userData.login, accessToken]);
-      // // Redirect back to frontend with the user ID
-      res.redirect(`http://localhost:5173?user_id=${userData.id}`);
-      // console.log(response);
-  } catch (error) {
-      console.error('Error fetching access token or user info', error);
-      res.status(500).json({ error: 'Failed to authenticate with GitHub' });
+async function isCorrectJWTToken(req, res, next) {
+  const token = req.headers.authorization?.split(' ')[1]; 
+  if (!token) {
+    return res.status(401).send('Unauthorized, token missing');
   }
-}); */
-   //***************************************************************************************************************************************** */
-  
-  // API route to get the user data from PostgreSQL using GitHub ID
-  app.get('/api/github/user/:id', async (req, res) => {
-      /* console.log('Received GitHub ID:', req.params.id); */
-      const { id } = req.params;
-  
-      try {
-          // Find the user by GitHub ID in the database
-          const result = await client.query('SELECT github_id, login FROM users WHERE github_id = $1', [id]);
-          /* console.log(result) */
-          if (result.rows.length === 0) {
-              return res.status(404).json({ error: 'User not found' });
-          }
-  
-          // Return user data
-          const user = result.rows[0];
-          res.json({
-              github_id: user.github_id,
-              login: user.login,
-          });
-      } catch (error) {
-          console.error('Error fetching user from database', error);
-          res.status(500).json({ error: 'Failed to fetch user' });
-      }
-  });
-  
-  
- 
-// now to build out the app.gets
-
-
-app.get('/api/users', async(req, res, next)=> {
   try {
-    res.send(await fetchUsers());
+   jwt.verify(req.headers.authorization, SECRET_KEY);
+          next();
+      } catch (err) {
+      res.status(401).send('Unauthorized, token invalid');
+  }
+}
+// create user
+
+
+//get all users
+app.get('/api/users', async (req, res, next) => {
+  try {
+    const users = await fetchUsers();
+    res.json(users);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Get user by ID
+app.get('/api/users/:id', async (req, res, next) => {
+  try {
+    const response = await client.query("SELECT * FROM Users WHERE id = $1", [req.params.id]);
+    const user = response.rows[0];
+    const isCorrectJWTToken = await jwt.verify(user.token, SECRET_KEY);
+
+    if (isCorrectJWTToken) {
+      res.json(user);
+    } else {
+      res.status(401).send('Unauthorized');
+    }
+  } catch (err) {
+    next(err);
+  }
+});
+
+//user reviews by ID
+app.get('/api/users/:id/reviews', async(req, res, next)=> {
+  try {
+    const reviews = await fetchUserReviews(req.params.id);
+    res.json(reviews);
   }
   catch(ex){
     next(ex);
   }
 });
 
+//Fetch all items
 
 app.get('/api/items', async(req, res, next)=> {
-    try {
-      res.send(await fetchItems());
-    }
-    catch(ex){
-      next(ex);
-    }
-  });
+  try {
+    const items = await fetchItems();
+    res.json(items);
+  } catch (err) {
+    next(err);
+  }
+});
 
 
-app.get('/api/users/:id/reviews', async(req, res, next)=> {
-    try {
-      res.send(await fetchUserReviews(req.params.id));
-    }
-    catch(ex){
-      next(ex);
-    }
-  });
-
-app.get('/api/item/:id/reviews', async(req, res, next)=> {
-    try {
-      res.send(await fetchItemReviews(req.params.id));
-    }
-    catch(ex){
-      next(ex);
-    }
-  });
-
-
-// now to build out the app.posts
-
+//Create a review
 app.post('/api/users/:id/reviews', async(req, res, next)=> {
   try {
     const { item_id, rating, comments } = req.body;
@@ -200,28 +116,130 @@ app.post('/api/users/:id/reviews', async(req, res, next)=> {
   }
 });
 
-// now to build out the app.deletes
+//get a review by ID
+app.get('/api/item/:id/reviews', async(req, res, next)=> {
+  try {
+    res.send(await fetchItemReviews(req.params.id));
+  }
+  catch(ex){
+    next(ex);
+  }
+});
 
+
+//Delete a review
 app.delete('/api/users/:userId/reviews/:id', async(req, res, next)=> {
-    try {
-      await deleteReview({ id: req.params.id, user_id: req.params.userId });
-      res.sendStatus(204);
-    }
-    catch(ex){
-      next(ex);
-    }
-  });
+  try {
+    await deleteReview({ id: req.params.id, user_id: req.params.userId });
+    res.sendStatus(204);
+  }
+  catch(ex){
+    next(ex);
+  }
+});
 
-  app.delete('/api/item/:itemId/reviews/:id', async(req, res, next)=> {
-    try {
-      await deleteReview({ id: req.params.id, item_id: req.params.itemId  });
-      res.sendStatus(204);
-    }
-    catch(ex){
-      next(ex);
-    }
-  });
+//Update a review
+app.put('/api/users/:userId/reviews/:id', async(req, res, next)=> {
+  try {
+    const { rating, comments } = req.body;
+    res.send(await updateReview({ id: req.params.id, user_id: req.params.userId, rating, comments }));
+  }
+  catch(ex){
+    next(ex);
+  }
+});
 
+//Create a comment
+app.post('/api/users/:userId/reviews/:reviewId/comments', async(req, res, next)=> {
+  try {
+    const { comment_text } = req.body;
+    res.status(201).send(await createComment({ review_id: req.params.reviewId, user_id: req.params.userId, comment_text }));
+  }
+  catch(ex){
+    next(ex);
+  }
+});
+
+//get a comment by ID
+app.get('/api/users/:userId/reviews/:reviewId/comments', async(req, res, next)=> {
+  try {
+    res.send(await fetchUserComments(req.params.userId, req.params.reviewId));
+  }
+  catch(ex){
+    next(ex);
+  }
+});
+
+//Delete a comment
+app.delete('/api/users/:userId/reviews/:reviewId/comments/:id', async(req, res, next)=> {
+  try {
+    await deleteComment({ id: req.params.id, user_id: req.params.userId });
+    res.sendStatus(204);
+  }
+  catch(ex){
+    next(ex);
+  }
+});
+
+//update a comment
+app.put('/api/users/:userId/reviews/:reviewId/comments/:id', async(req, res, next)=> {
+  try {
+    const { comment_text } = req.body;
+    res.send(await updateComment({ id: req.params.id, user_id: req.params.userId, comment_text }));
+  }
+  catch(ex){
+    next(ex);
+  }
+});
+
+//search items
+app.get('/api/items/search', async(req, res, next)=> {
+  try {
+    res.send(await searchItems(req.query.q));
+  }
+  catch(ex){
+    next(ex);
+  }
+});
+
+//get item details
+app.get('/api/items/:id', async(req, res, next)=> {
+  try {
+    res.send(await fetchItemDetails(req.params.id));
+  }
+  catch(ex){
+    next(ex);
+  }
+});
+
+//sign up, create a user
+app.post('/api/signup', async(req, res, next)=> {
+  try {
+    const { username, password } = req.body;
+    res.status(201).send(await signUp({ username, password }));
+  }
+  catch(ex){
+    next(ex);
+  }
+});
+
+//log in
+app.post('/api/login', async(req, res, next)=> {
+  try {
+    const { username, password } = req.body;
+    const user = await logIn({ username, password });
+    if (user) {
+      const token = jwt.sign({ username: user.username }, SECRET_KEY);
+      await client.query("UPDATE Users SET token  = $1 WHERE id = $2", [token, user.id]);
+      res.json({ token });
+    } else {
+      res.status(401).send('Unauthorized');
+    }
+  }
+  catch(ex){
+    next(ex);
+  }
+});
 
 
 const init = async()=> {
@@ -229,52 +247,44 @@ const init = async()=> {
     console.log('connected to database');
     await createTables();
     console.log('tables created');
-    const [moe, lucy, ethyl, singing, dancing, juggling, plateSpinning] = await Promise.all([
+
+    // user buildout
+    const [moe, lucy, ethyl] = await Promise.all([
       createUser({ username: 'moe', password: 's3cr3t' }),
       createUser({ username: 'lucy', password: 's3cr3t!!' }),
-      createUser({ username: 'ethyl', password: 'shhh' }),
-      createItem({ name: 'singing'}),
-      createItem({ name: 'dancing'}),
-      createItem({ name: 'juggling'}),
-      createItem({ name: 'plate spinning'}),
-    ]); 
-    const users = await fetchUsers();
-    console.log(users);
-  
-    const skills = await fetchItems();
-    console.log(items);
-  
-     const userReview = await Promise.all([                                                        //Build this for reviews
+      createUser({ username: 'ethyl', password: 'shhh' })
+    ]);
+    //item buildout
+    const [singing, dancing, juggling, plateSpinning] = await Promise.all([
+      createItem({ name: 'singing' }),
+      createItem({ name: 'dancing' }),
+      createItem({ name: 'juggling' }),
+      createItem({ name: 'plate spinning' })
+    ]);
+  //reviews
+    await Promise.all([                                                        
         createReview({ user_id: moe.id, item_id: plateSpinning.id, rating: '5', comments: 'great'}),
         createReview({ user_id: moe.id, item_id: juggling.id, rating: '4', comments: 'good'}),
         createReview({ user_id: ethyl.id, item_id: juggling.id, rating: '3', comments: 'ok'}),
         createReview({ user_id: lucy.id, item_id: dancing.id, rating: '5', comments: 'great'}),
-      ]); */
-
-/const reviewComment = await Promise.all([                                           //Build this for comments
+      ]);
+    //comments
+ await Promise.all([                                          
         createComment({ review_id: 1, user_id: moe.id, item_id: plateSpinning.id, comment_text: 'great. what a lost art.'}),
         createComment({ review_id: 2, user_id: ethyl.id, item_id: singing.id, comment_text: 'does not help me sing'}),
         createComment({ review_id: 3, user_id: ethyl.id, item_id: singing.id, comment_text: 'cannot carry a tune in a buycket'}),
         createComment({ review_id: 4, user_id: lucy.id, item_id: plateSpinning.id, comment_text: 'WTF is this? Who does plate spinning anymore?'}),
-      ]); */
+      ]);
 
     
-      console.log(await fetchUserReviews(X.id));
-      await deleteReview({ user_id: X.id, id: reviews[0].id});
-      console.log(await fetchUserReviews(moe.id));
+      console.log('Data seeded');
     
-      console.log(`curl localhost:3000/api/users/${moe.id}/reviews`);
-    
-      console.log(`curl -X POST localhost:3000/api/users/${moe.id}/reviews -d '{"item_id": "${platespinning.id}"}' -H 'Content-Type:application/json'`);
-      console.log(`curl -X DELETE localhost:3000/api/users/${moe.id}/reviews/${plateSpinning[3].id}`);
-      
-      console.log('data seeded');
-    
-      app.listen(PORT, () => {
-        console.log(`Server running on http://localhost:${PORT}`);
-      });
-    } catch (error) {
-      console.error('Error during initialization:', error);
-    };
-  
-  init();
+    app.listen(PORT, () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  } catch (err) {
+    console.error('Error during initialization:', err);
+  }
+};
+
+init();
