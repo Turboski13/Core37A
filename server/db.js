@@ -49,6 +49,14 @@ const createTables = async()=> {
 
 //Public routes
 //GET/API/items-browse and read reviews
+const createItem = async({ name, details, rating, reviews_id })=> {
+  const SQL = `
+    INSERT INTO items(id, name, details, rating, reviews_id) VALUES($1, $2, $3, $4, $5) RETURNING *;
+  `;
+  const response = await client.query(SQL, [uuid.v4(), name, details, rating, reviews_id]);
+  return response.rows[0];
+}
+
 const fetchItems = async()=> {
   const SQL = `
     SELECT * FROM items;
@@ -104,7 +112,14 @@ const logIn = async({ username, password }) => {
   return user;
 };
 
-
+// fetch all users
+const fetchUsers = async()=> {
+  const SQL = `
+    SELECT * FROM users;
+  `;
+  const response = await client.query(SQL);
+  return response.rows;
+}
 
 //Logged in User Routes (authenticated users)
 //POST /api/reviews – Write and submit a review for an item (text + rating).
@@ -182,30 +197,6 @@ const fetchUserComments = async(user_id) => {
   const response = await client.query(SQL, [user_id]);
   return response.rows;
 };
-
-
-
-//ect extra?
-// create a user
-// create an item
-const createItem = async({ name, details, rating, reviews_id })=> {
-  const SQL = `
-    INSERT INTO items(id, name, details, rating, reviews_id) VALUES($1, $2, $3, $4, $5) RETURNING *;
-  `;
-  const response = await client.query(SQL, [uuid.v4(), name, details, rating, reviews_id]);
-  return response.rows[0];
-}
-
-// fetch all users
-const fetchUsers = async()=> {
-  const SQL = `
-    SELECT * FROM users;
-  `;
-  const response = await client.query(SQL);
-  return response.rows;
-}
-  
-
 
 
   module.exports = {

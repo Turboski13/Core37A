@@ -3,6 +3,9 @@ const cors = require('cors');
 require('dotenv').config();
 const PORT = 8080;
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
+const SECRET_KEY = 'shhhhh';
 app.use(express.json());
 
 const {
@@ -34,19 +37,45 @@ const {
 
   app.use(express.json());
 // IsLoggedIn here, check middleware ********************************************************************************************************************
+async function isCorrectJWTToken(req, res, next) {
+  try {
+      if (await jwt.verify(req.headers.authorization, SECRET_KEY)) {
+          next();
+      }
+  } catch (err) {
+      res.status(401).send('Unauthorized');
+  }
+}
+
+app.get('/api/users', async (req, res) => {
+  const response = await client.query("SELECT * FROM Users");
+  res.json(response.rows);
+})
+
+
+// get token from database
+app.get('/api/users/:id', async (req, res) => {
+    const response = await client.query("SELECT * FROM Users WHERE id = $1", [req.params.id]);
+    const isCorrectJWTToken = await jwt.verify(response.rows[0].token, SECRET_KEY);
+         if (isCorrectJWTToken) {
+         res.json(response.rows);
+     } else {
+         res.status(401).send('Unauthorized');
+     }
+ })
 
 
 // remove Oauth and add in the fetchUsers ***************************************************************************************************************
 
 // GitHub OAuth route - redirect to GitHub for authentication
-app.get('/auth/github', (req, res) => {
+/* app.get('/auth/github', (req, res) => {
   const redirect_uri = 'http://localhost:8080/auth/github/callback';
   const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${redirect_uri}&scope=user:email`;
   res.redirect(githubAuthUrl);
-});
+}); */
 
 // OAuth callback handler
-app.get('/auth/github/callback', async (req, res) => {
+/* app.get('/auth/github/callback', async (req, res) => {
   const { code } = req.query; // github sends code in query params
   
 
@@ -87,7 +116,7 @@ app.get('/auth/github/callback', async (req, res) => {
       console.error('Error fetching access token or user info', error);
       res.status(500).json({ error: 'Failed to authenticate with GitHub' });
   }
-});
+}); */
    //***************************************************************************************************************************************** */
   
   // API route to get the user data from PostgreSQL using GitHub ID
@@ -195,15 +224,7 @@ app.delete('/api/users/:userId/reviews/:id', async(req, res, next)=> {
 
 
 
-
-
-
-
-
-//do I seed here, or should I build a seed file? *************************************************************************
-
-
-  const init = async()=> {
+const init = async()=> {
     await client.connect();
     console.log('connected to database');
     await createTables();
@@ -223,29 +244,29 @@ app.delete('/api/users/:userId/reviews/:id', async(req, res, next)=> {
     const skills = await fetchItems();
     console.log(items);
   
-    /* const userSkills = await Promise.all([                                                        //Build this for reviews
-        createUserSkill({ user_id: moe.id, skill_id: plateSpinning.id}),
-        createUserSkill({ user_id: moe.id, skill_id: juggling.id}),
-        createUserSkill({ user_id: ethyl.id, skill_id: juggling.id}),
-        createUserSkill({ user_id: lucy.id, skill_id: dancing.id}),
+     const userReview = await Promise.all([                                                        //Build this for reviews
+        createReview({ user_id: moe.id, item_id: plateSpinning.id, rating: '5', comments: 'great'}),
+        createReview({ user_id: moe.id, item_id: juggling.id, rating: '4', comments: 'good'}),
+        createReview({ user_id: ethyl.id, item_id: juggling.id, rating: '3', comments: 'ok'}),
+        createReview({ user_id: lucy.id, item_id: dancing.id, rating: '5', comments: 'great'}),
       ]); */
 
-/* const userSkills = await Promise.all([                                           //Build this for comments
-        createUserSkill({ user_id: moe.id, skill_id: plateSpinning.id}),
-        createUserSkill({ user_id: moe.id, skill_id: juggling.id}),
-        createUserSkill({ user_id: ethyl.id, skill_id: juggling.id}),
-        createUserSkill({ user_id: lucy.id, skill_id: dancing.id}),
+/const reviewComment = await Promise.all([                                           //Build this for comments
+        createComment({ review_id: 1, user_id: moe.id, item_id: plateSpinning.id, comment_text: 'great. what a lost art.'}),
+        createComment({ review_id: 2, user_id: ethyl.id, item_id: singing.id, comment_text: 'does not help me sing'}),
+        createComment({ review_id: 3, user_id: ethyl.id, item_id: singing.id, comment_text: 'cannot carry a tune in a buycket'}),
+        createComment({ review_id: 4, user_id: lucy.id, item_id: plateSpinning.id, comment_text: 'WTF is this? Who does plate spinning anymore?'}),
       ]); */
 
     
-      /* console.log(await fetchUserReviews(X.id));
+      console.log(await fetchUserReviews(X.id));
       await deleteReview({ user_id: X.id, id: reviews[0].id});
       console.log(await fetchUserReviews(moe.id));
     
-      console.log(`curl localhost:3000/api/users/${XX.id}/reviews`);
+      console.log(`curl localhost:3000/api/users/${moe.id}/reviews`);
     
-      console.log(`curl -X POST localhost:3000/api/users/${XX.id}/reviews -d '{"skill_id": "${Y.id}"}' -H 'Content-Type:application/json'`);
-      console.log(`curl -X DELETE localhost:3000/api/users/${XX.id}/reviews/${Y[3].id}`); */
+      console.log(`curl -X POST localhost:3000/api/users/${moe.id}/reviews -d '{"item_id": "${platespinning.id}"}' -H 'Content-Type:application/json'`);
+      console.log(`curl -X DELETE localhost:3000/api/users/${moe.id}/reviews/${plateSpinning[3].id}`);
       
       console.log('data seeded');
     
