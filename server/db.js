@@ -2,7 +2,7 @@ const pg = require('pg');
 const express = require('express');
 const app = express();
 const port = 2000;
-const client = new pg.Client(process.env.DATABASE_URL || 'postgres://localhost/this_is_new'); //fix this link???
+const client = new pg.Client(process.env.DATABASE_URL || 'postgres://localhost/this_is_new');
 const uuid = require('uuid');
 const bcrypt = require('bcrypt');
 

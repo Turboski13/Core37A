@@ -42,11 +42,11 @@ app.use(cors({
 
 async function isCorrectJWTToken(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1]; 
-  if (!token) {
+  if (!token) {    
     return res.status(401).send('Unauthorized, token missing');
   }
   try {
-   jwt.verify(req.headers.authorization, SECRET_KEY);
+   jwt.verify(token, SECRET_KEY);
           next();
       } catch (err) {
       res.status(401).send('Unauthorized, token invalid');
@@ -70,7 +70,7 @@ app.get('/api/users/:id', async (req, res, next) => {
   try {
     const response = await client.query("SELECT * FROM Users WHERE id = $1", [req.params.id]);
     const user = response.rows[0];
-    const isCorrectJWTToken = await jwt.verify(user.token, SECRET_KEY);
+    const isCorrectJWTToken = jwt.verify(user.token, SECRET_KEY);
 
     if (isCorrectJWTToken) {
       res.json(user);
@@ -88,8 +88,8 @@ app.get('/api/users/:id/reviews', async(req, res, next)=> {
     const reviews = await fetchUserReviews(req.params.id);
     res.json(reviews);
   }
-  catch(ex){
-    next(ex);
+  catch(err){
+    next(err);
   }
 });
 
@@ -109,20 +109,22 @@ app.get('/api/items', async(req, res, next)=> {
 app.post('/api/users/:id/reviews', async(req, res, next)=> {
   try {
     const { item_id, rating, comments } = req.body;
-    res.status(201).send(await createReview({ user_id: req.params.id, item_id, rating, comments }));
+    const review = await createReview({ user_id: req.params.id, item_id, rating, comments });
+    res.status(201).send(review);
   }
-  catch(ex){
-    next(ex);
+  catch(err){
+    next(err);
   }
 });
 
 //get a review by ID
 app.get('/api/item/:id/reviews', async(req, res, next)=> {
   try {
-    res.send(await fetchItemReviews(req.params.id));
+    const reviews = await fetchItemReviews(req.params.id); 
+    res.json(reviews);
   }
-  catch(ex){
-    next(ex);
+  catch(err){
+    next(err);
   }
 });
 
@@ -133,8 +135,8 @@ app.delete('/api/users/:userId/reviews/:id', async(req, res, next)=> {
     await deleteReview({ id: req.params.id, user_id: req.params.userId });
     res.sendStatus(204);
   }
-  catch(ex){
-    next(ex);
+  catch(err){
+    next(err);
   }
 });
 
@@ -144,8 +146,8 @@ app.put('/api/users/:userId/reviews/:id', async(req, res, next)=> {
     const { rating, comments } = req.body;
     res.send(await updateReview({ id: req.params.id, user_id: req.params.userId, rating, comments }));
   }
-  catch(ex){
-    next(ex);
+  catch(err){
+    next(err);
   }
 });
 
@@ -153,20 +155,22 @@ app.put('/api/users/:userId/reviews/:id', async(req, res, next)=> {
 app.post('/api/users/:userId/reviews/:reviewId/comments', async(req, res, next)=> {
   try {
     const { comment_text } = req.body;
-    res.status(201).send(await createComment({ review_id: req.params.reviewId, user_id: req.params.userId, comment_text }));
+    const comment = await createComment({ review_id: req.params.reviewId, user_id: req.params.userId, comment_text });
+    res.status(201).send(comment); 
   }
-  catch(ex){
-    next(ex);
+  catch(err){
+    next(err);
   }
 });
 
 //get a comment by ID
 app.get('/api/users/:userId/reviews/:reviewId/comments', async(req, res, next)=> {
   try {
-    res.send(await fetchUserComments(req.params.userId, req.params.reviewId));
+    const comments = await fetchUserComments(req.params.userId, req.params.reviewId);
+    res.json(comments);
   }
-  catch(ex){
-    next(ex);
+  catch(err){
+    next(err);
   }
 });
 
@@ -176,8 +180,8 @@ app.delete('/api/users/:userId/reviews/:reviewId/comments/:id', async(req, res, 
     await deleteComment({ id: req.params.id, user_id: req.params.userId });
     res.sendStatus(204);
   }
-  catch(ex){
-    next(ex);
+  catch(err){
+    next(err);
   }
 });
 
@@ -185,7 +189,8 @@ app.delete('/api/users/:userId/reviews/:reviewId/comments/:id', async(req, res, 
 app.put('/api/users/:userId/reviews/:reviewId/comments/:id', async(req, res, next)=> {
   try {
     const { comment_text } = req.body;
-    res.send(await updateComment({ id: req.params.id, user_id: req.params.userId, comment_text }));
+    const comment = await updateComment({ id: req.params.id, user_id: req.params.userId, comment_text });
+    res.send(comment);
   }
   catch(ex){
     next(ex);
@@ -195,7 +200,8 @@ app.put('/api/users/:userId/reviews/:reviewId/comments/:id', async(req, res, nex
 //search items
 app.get('/api/items/search', async(req, res, next)=> {
   try {
-    res.send(await searchItems(req.query.q));
+    const items = await searchItems(req.query.q);
+    res.json(items);
   }
   catch(ex){
     next(ex);
@@ -205,7 +211,8 @@ app.get('/api/items/search', async(req, res, next)=> {
 //get item details
 app.get('/api/items/:id', async(req, res, next)=> {
   try {
-    res.send(await fetchItemDetails(req.params.id));
+    const itemDetails = await fetchItemDetails(req.params.id);
+    res.json(itemDetails);
   }
   catch(ex){
     next(ex);
@@ -216,7 +223,8 @@ app.get('/api/items/:id', async(req, res, next)=> {
 app.post('/api/signup', async(req, res, next)=> {
   try {
     const { username, password } = req.body;
-    res.status(201).send(await signUp({ username, password }));
+    const user = await signUp({ username, password });
+    res.status(201).send(user); 
   }
   catch(ex){
     next(ex);
@@ -236,8 +244,8 @@ app.post('/api/login', async(req, res, next)=> {
       res.status(401).send('Unauthorized');
     }
   }
-  catch(ex){
-    next(ex);
+  catch(err){
+    next(err);
   }
 });
 
